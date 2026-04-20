@@ -29,6 +29,24 @@ pip install -r requirements.txt
 However, there may be some ad-hoc dependencies that were not captured. 
 If you encounter any missing packages, feel free to install them manually using `pip install`.
 
+## Installation-Ryoji
+```bash
+conda create --name tgdmat python=3.10 -y
+conda activate tgdmat
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+pip install pyg_lib torch_scatter==2.1.2 torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.6.0+cu124.html
+
+pip install -r requirements.txt
+# I have relaxed the numpy and scipy version specifications in requirements.txt for the installation to work. For more details see the commented out lines in requirements.txt
+```
+
+## Ryoji-Notes
+
+Generation task (short prompts):
+
+For editing text: the attributes are controleled inside `generate_task/model/data_utils.py`, `prepare_text()`. 
+
+
 ## Textual Dataset
 Text-guided reverse diffusion remains unexplored in material design, partly due to the lack of textual data in benchmark databases. To address this, we propose two methods for generating material descriptions: 
 - (1) Using Robocrystallographer for detailed structural texts, and 
