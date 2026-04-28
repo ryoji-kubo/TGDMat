@@ -69,7 +69,7 @@ def train(train_dataloader, val_dataloader, test_dataloader, model, config, data
 
     best_model = model
 
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(epochs), desc=f"train:{dataset}:epochs"):
         t0 = time()
         loss, coord_loss, type_loss, lattice_loss = train_epoch(train_dataloader, model)
         val_loss, val_coord_loss, val_type_loss, val_lattice_loss = validate(val_dataloader, model)
@@ -133,9 +133,16 @@ def main(args):
     print("Total Params: ",num_params)
     print("Model Size (in MB): ", round(model_size_in_MB,2))
     print("Prompt Type: ", args.prompt_type)
+    print("Short Prompt Training Scheme: ", args.short_prompt_training_scheme)
 
     root_path = "../data_text/"
-    train_dataset = MaterialDataset(root_path, args.dataset, args.prompt_type, config.train_data)
+    train_dataset = MaterialDataset(
+        root_path,
+        args.dataset,
+        args.prompt_type,
+        config.train_data,
+        short_prompt_training_scheme=args.short_prompt_training_scheme,
+    )
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, pin_memory=True)
     val_dataset = MaterialDataset(root_path, args.dataset, args.prompt_type, config.eval_data)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=True, pin_memory=True)
@@ -155,6 +162,7 @@ if __name__ == "__main__":
     parser.add_argument('--expt_time',  type=str)
     parser.add_argument('--model_name', type=str)
     parser.add_argument('--prompt_type', type=str, default='long') #long or short
+    parser.add_argument('--short_prompt_training_scheme', type=str, default='full') # full or leave_one_out
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--timesteps', type=int, default=1000)
     args = parser.parse_args()

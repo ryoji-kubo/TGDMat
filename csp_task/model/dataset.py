@@ -2,11 +2,12 @@ import torch
 import os
 import bz2
 import pickle
+import random
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
-from model.data_utils import (preprocess, add_scaled_lattice_prop)
+from model.data_utils import (preprocess, add_scaled_lattice_prop, get_short_prompt_variant_key)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -15,12 +16,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class MaterialDataset(Dataset):
-    def __init__(self, data_dir, dataset, prompt_type, file):
+    def __init__(
+        self,
+        data_dir,
+        dataset,
+        prompt_type,
+        file,
+        short_prompt_training_scheme='full',
+        short_prompt_eval_omit=None,
+    ):
         super().__init__()
         self.dataset = dataset
         self.path = os.path.join(data_dir, dataset, file + ".csv")
         self.df = pd.read_csv(self.path)
         self.prompt_type = prompt_type
+        self.short_prompt_training_scheme = short_prompt_training_scheme
+        self.short_prompt_eval_omit = short_prompt_eval_omit
         if self.dataset == 'perov_5':
             self.prop = ['heat_ref']
             all_attributes = ["pretty_formula", "elements", "heat_ref", "spacegroup", "system"]
@@ -41,7 +52,7 @@ class MaterialDataset(Dataset):
         # print(self.path)
         # print(dataset)
         # print(file)
-        cache_path = os.path.join(data_dir, dataset, file + ".pbz2")
+        cache_path = os.path.join(data_dir, dataset, file + "_short_prompt_variants_v1.pbz2")
         # print(cache_path)
 
         if os.path.exists(cache_path):
@@ -80,7 +91,7 @@ class MaterialDataset(Dataset):
         if self.prompt_type=='long':
             text = data_dict['text_long']
         else:
-            text = data_dict['text_short']
+            text = self._get_short_prompt_embedding(data_dict)
 
         data = Data(
             frac_coords=torch.Tensor(frac_coords),
@@ -96,6 +107,21 @@ class MaterialDataset(Dataset):
             text=text
         )
         return data
+
+    def _get_short_prompt_embedding(self, data_dict):
+        if 'text_short_variants' not in data_dict:
+            return data_dict['text_short']
+
+        if self.short_prompt_training_scheme == 'leave_one_out' and self.short_prompt_eval_omit is None:
+            variant_keys = [get_short_prompt_variant_key()]
+            variant_keys.extend(
+                get_short_prompt_variant_key(attr)
+                for attr in data_dict.get('short_prompt_attributes', [])
+            )
+            return data_dict['text_short_variants'][random.choice(variant_keys)]
+
+        variant_key = get_short_prompt_variant_key(self.short_prompt_eval_omit)
+        return data_dict['text_short_variants'].get(variant_key, data_dict['text_short'])
 
 
 def main():

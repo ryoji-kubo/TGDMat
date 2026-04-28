@@ -48,6 +48,32 @@ tokenizer = AutoTokenizer.from_pretrained('m3rg-iitd/matscibert',model_max_lengt
 text_model = AutoModel.from_pretrained('m3rg-iitd/matscibert')
 text_model.to(device)
 
+SHORT_PROMPT_LOOKUP = {
+    'perov_5': {
+        "heat_ref": "The formation energy per atom is",
+        "pretty_formula": "The chemical formula is",
+        "elements": "The elements are",
+        "spacegroup": "The spacegroup number is",
+        "system": "The crystal system is",
+    },
+    'carbon_24': {
+        "energy_per_atom": "The energy per atom is",
+        "pretty_formula": "The chemical formula is",
+        "elements": "The elements are",
+        "spacegroup": "The spacegroup number is",
+        "system": "The crystal system is",
+    },
+    'mp_20': {
+        "formation_energy_per_atom": "The formation energy per atom is",
+        "band_gap": "The band gap is",
+        "pretty_formula": "The chemical formula is",
+        "e_above_hull": "The energy above the convex hull is",
+        "elements": "The elements are",
+        "spacegroup": "The spacegroup number is",
+        "system": "The crystal system is",
+    },
+}
+
 
 
 # Tensor of unit cells. Assumes 27 cells in -1, 0, 1 offsets in the x and y dimensions
@@ -1178,39 +1204,18 @@ def get_text_emb(text):
     cls_emb = last_hidden_state[:, 0, :].cpu()
     return cls_emb
 
+def get_short_prompt_variant_key(omitted_attr=None):
+    if omitted_attr is None:
+        return "full"
+    return f"omit::{omitted_attr}"
+
 def prepare_text(structure, dataset, all_attributes, properties):
     element_list = []
     for elem in structure.composition.elements:
         element_list.append(elem.symbol)
     sga = SpacegroupAnalyzer(structure)
     prompt = "Below is a description of a bulk material. "
-
-    if dataset == 'perov_5':
-        prompt_lookup = {
-            "heat_ref": "The formation energy per atom is",
-            "pretty_formula": "The chemical formula is",
-            "elements": "The elements are",
-            "spacegroup": "The spacegroup number is",
-            "system": "The crystal system is",
-        }
-    elif dataset == 'carbon_24':
-        prompt_lookup = {
-            "energy_per_atom": "The energy per atom is",
-            "pretty_formula": "The chemical formula is",
-            "elements": "The elements are",
-            "spacegroup": "The spacegroup number is",
-            "system": "The crystal system is",
-        }
-    elif dataset == 'mp_20':
-        prompt_lookup = {
-            "formation_energy_per_atom": "The formation energy per atom is",
-            "band_gap": "The band gap is",
-            "pretty_formula": "The chemical formula is",
-            "e_above_hull": "The energy above the convex hull is",
-            "elements": "The elements are",
-            "spacegroup": "The spacegroup number is",
-            "system": "The crystal system is",
-        }
+    prompt_lookup = SHORT_PROMPT_LOOKUP[dataset]
     for attr in all_attributes:
         if attr == "elements":
             prompt += f"{prompt_lookup[attr]} {', '.join(element_list)}. "
@@ -1224,6 +1229,18 @@ def prepare_text(structure, dataset, all_attributes, properties):
             prompt += f"{prompt_lookup[attr]} {round(float(properties[attr]), 4)}. "
     prompt += ("Generate the material:")
     return prompt
+
+def build_short_prompt_variants(structure, dataset, all_attributes, properties):
+    variants = {}
+    variants[get_short_prompt_variant_key()] = get_text_emb(
+        prepare_text(structure, dataset, all_attributes, properties)
+    )
+    for omitted_attr in all_attributes:
+        variant_attributes = [attr for attr in all_attributes if attr != omitted_attr]
+        variants[get_short_prompt_variant_key(omitted_attr)] = get_text_emb(
+            prepare_text(structure, dataset, variant_attributes, properties)
+        )
+    return variants
 
 def process_one(row, niggli, primitive, graph_method, prop_list, all_attributes, dataset, use_space_group = False, tol=0.01):
     crystal_str = row['cif']
@@ -1240,16 +1257,18 @@ def process_one(row, niggli, primitive, graph_method, prop_list, all_attributes,
     random.shuffle(all_attributes)
 
     prompt_long = row['text']
-    prompt_short = prepare_text(crystal, dataset, all_attributes, properties)
+    prompt_short_variants = build_short_prompt_variants(crystal, dataset, all_attributes, properties)
     text_emb_long = get_text_emb(prompt_long)
-    text_emb_short = get_text_emb(prompt_short)
+    text_emb_short = prompt_short_variants[get_short_prompt_variant_key()]
 
     result_dict.update({
         'mp_id': row['material_id'],
         'cif': crystal_str,
         'graph_arrays': graph_arrays,
         'text_long': text_emb_long,
-        'text_short': text_emb_short
+        'text_short': text_emb_short,
+        'text_short_variants': prompt_short_variants,
+        'short_prompt_attributes': list(all_attributes),
     })
     result_dict.update(properties)
     return result_dict
@@ -1259,7 +1278,7 @@ def preprocess(input_file, niggli, primitive, graph_method, prop_list, all_attri
     df = pd.read_csv(input_file)
 
     unordered_results = []
-    for idx in tqdm(range(len(df))):
+    for idx in tqdm(range(len(df)), desc=f"preprocess:{dataset}"):
         result = process_one(
             df.iloc[idx],
             niggli,

@@ -12,7 +12,7 @@
             "cwd": "${workspaceFolder}/generate_task",
             "program": "train.py",
             "console": "integratedTerminal",
-            "args": ["--dataset=mp_20", "--batch_size=512", "--epochs=500", "--prompt_type=long"]
+            "args": ["--dataset=mp_20", "--batch_size=512", "--epochs=500", "--prompt_type=short", "--short_prompt_training_scheme=leave_one_out"]
         }
     ]
 }

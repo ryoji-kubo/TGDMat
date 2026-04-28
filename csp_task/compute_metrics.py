@@ -127,7 +127,7 @@ class RecEval(object):
         validity = [c.valid for c in self.preds]
 
         rms_dists = []
-        for i in tqdm(range(len(self.preds))):
+        for i in tqdm(range(len(self.preds)), desc="metrics:recon"):
             rms_dists.append(process_one(self.preds[i], self.gts[i], validity[i]))
         rms_dists = np.array(rms_dists)
         match_rate = sum(rms_dists != None) / len(self.preds)
@@ -161,7 +161,7 @@ class RecEvalBatch(object):
 
         rms_dists = []
         self.all_rms_dis = np.zeros((self.batch_size, len(self.gts)))
-        for i in tqdm(range(len(self.preds[0]))):
+        for i in tqdm(range(len(self.preds[0])), desc="metrics:recon_batch"):
             tmp_rms_dists = []
             for j in range(self.batch_size):
                 rmsd = process_one(self.preds[j][i], self.gts[i], self.preds[j][i].valid)
@@ -312,7 +312,7 @@ def main(args):
     print("Arguments:", args)
     all_metrics = {}
 
-    if 'csp' in args.tasks:
+    if 'csp' in args.tasks or 'recon' in args.tasks:
         recon_file_path = get_file_paths(args.root_path, 'recon', args.label)
         batch_idx = -1 if args.multi_eval else 0
         crys_array_list, true_crystal_array_list = get_crystal_array_list(recon_file_path,batch_idx)

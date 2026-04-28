@@ -101,7 +101,13 @@ def main(args):
     root_path = "../data_text/"
 
     if 'disp' not in args.tasks:
-        test_dataset = MaterialDataset(root_path, args.dataset, args.prompt_type, config.test_data)
+        test_dataset = MaterialDataset(
+            root_path,
+            args.dataset,
+            args.prompt_type,
+            config.test_data,
+            short_prompt_eval_omit=args.short_prompt_eval_omit,
+        )
         test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, pin_memory=True)
 
     device = config.device
@@ -183,5 +189,6 @@ if __name__ == '__main__':
     parser.add_argument('--timesteps', type=int, default=1000)
     parser.add_argument('--dataset', required=True, type=str, default='perov_5')
     parser.add_argument('--prompt_type', type=str, default='long')  # long or short
+    parser.add_argument('--short_prompt_eval_omit', type=str, default=None)
     args = parser.parse_args()
     main(args)

@@ -115,7 +115,7 @@ class TGDiffusion(nn.Module):
         }}
 
 
-        for t in tqdm(range(time_start, 0, -1)):
+        for t in tqdm(range(time_start, 0, -1), desc="sample:trajectory"):
 
             times = torch.full((batch_size, ), t, device = device)
 
