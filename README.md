@@ -208,7 +208,7 @@ CUDA_VISIBLE_DEVICES=3 python -W ignore compute_metrics.py --root_path gen_loo_o
 |tgdmat_full_omit_fenergy| mp_20| full| omit_fenergy |0.9915 |0.9996 |6.3834 | 1.9052| 0.8836| 0.7336|
 |tgdmat_loo_omit_fenergy| mp_20 | loo| omit_fenergy |0.9919|0.9999|6.308|1.8982|0.8098|0.7322
 
-
+**Camera-Ready Result**
 | Model  | Comp_Valid | Struct_Valid | wdist_density | wdist_num_elems | cov_recall | cov_precision |
 |---|---|---:|---:|---:|---:|---:|
 | TGDMat (Reported) | 0.8660 |1.0000 |0.3296 |0.3337 |0.9979 |0.9988 |
